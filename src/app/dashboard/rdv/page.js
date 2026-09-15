@@ -20,7 +20,7 @@ import Swal from "sweetalert2";
 const PRIMARY_BLUE = "#06b6d4";
 const ACCENT_GREEN = "#2da442";
 const ERROR_RED = "#dc2626";
-const API_URL = "https://gemma-ci.com/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export default function RendezVousPage() {
   const [rendezVous, setRendezVous] = useState([]);

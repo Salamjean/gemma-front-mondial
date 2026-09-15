@@ -12,11 +12,14 @@ import {
   FaFilter,
   FaDownload,
   FaChevronRight,
+  FaVideo,
 } from "react-icons/fa";
+
+import SelectServiceModal from "@/components/SelectServiceModal";
 
 const PRIMARY_BLUE = "#06b6d4";
 const ACCENT_GREEN = "#2da442";
-const API_URL = "https://gemma-ci.com/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export default function ConsultationsPage() {
   const [consultations, setConsultations] = useState([]);
@@ -24,6 +27,60 @@ export default function ConsultationsPage() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [requestingCall, setRequestingCall] = useState(false);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+
+  const handleStartOnlineConsultation = () => {
+    const token = localStorage.getItem("patient_token");
+    if (!token) return;
+    setIsServiceModalOpen(true);
+  };
+
+  const handleConfirmService = async (serviceId, paymentDetails = {}, apiResponseData = null) => {
+    const token = localStorage.getItem("patient_token");
+    if (!token) return;
+
+    if (apiResponseData && apiResponseData.status === "success") {
+      setIsServiceModalOpen(false);
+      window.dispatchEvent(
+        new CustomEvent("startOnlineConsultationCall", { detail: apiResponseData })
+      );
+      return;
+    }
+
+    try {
+      setRequestingCall(true);
+      const response = await fetch(`${API_URL}/v1/patient/online-consultation/request`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          prestation_hospital_id: serviceId,
+          amount: paymentDetails?.amount || 100,
+          payment_method: paymentDetails?.payment_method || "wave",
+          phone: paymentDetails?.phone || "",
+        }),
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        setIsServiceModalOpen(false);
+        window.dispatchEvent(
+          new CustomEvent("startOnlineConsultationCall", { detail: data })
+        );
+      } else {
+        alert(data.message || "Erreur lors de la demande de consultation.");
+      }
+    } catch (err) {
+      console.error("Erreur demande consultation en ligne:", err);
+      alert("Impossible de contacter le serveur.");
+    } finally {
+      setRequestingCall(false);
+    }
+  };
 
   useEffect(() => {
     fetchConsultations();
@@ -121,8 +178,18 @@ export default function ConsultationsPage() {
                 Historique complet de vos consultations médicales
               </p>
             </div>
-            <div className="text-sm text-gray-500">
-              {consultations.length} consultations enregistrées
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500 hidden md:inline">
+                {consultations.length} consultation(s)
+              </span>
+              <button
+                onClick={handleStartOnlineConsultation}
+                disabled={requestingCall}
+                className="px-4 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white rounded-xl font-bold shadow-md transition-all flex items-center gap-2 text-sm cursor-pointer disabled:opacity-50"
+              >
+                <FaVideo className="text-white text-base" />
+                <span>{requestingCall ? "Lancement..." : "Demander une consultation en ligne"}</span>
+              </button>
             </div>
           </div>
 
@@ -222,6 +289,13 @@ export default function ConsultationsPage() {
           </div>
         )}
       </div>
+
+      <SelectServiceModal
+        isOpen={isServiceModalOpen}
+        onClose={() => setIsServiceModalOpen(false)}
+        onConfirm={handleConfirmService}
+        loading={requestingCall}
+      />
     </DashboardLayout>
   );
 }

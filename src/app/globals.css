@@ -25,4 +25,12 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Hide sidebar, header and navbar when patient is in active video call or call modal */
+body.patient-in-call-active aside,
+body.patient-in-call-active header,
+body.patient-in-call-active nav,
+body.patient-in-call-active .patient-sidebar-container {
+  display: none !important;
+}
+
 

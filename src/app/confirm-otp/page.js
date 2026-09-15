@@ -7,7 +7,7 @@ import { FaUnlockAlt, FaSpinner, FaRedo } from "react-icons/fa";
 import Swal from "sweetalert2";
 
 // --- CONFIGURATION ---
-const API_URL = "https://gemma-ci.com/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 const PRIMARY_BLUE = "#06b6d4";
 const ACCENT_GREEN = "#2da442";
 const ERROR_RED = "#dc2626";
