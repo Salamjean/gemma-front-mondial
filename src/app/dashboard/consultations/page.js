@@ -41,10 +41,7 @@ export default function ConsultationsPage() {
     if (!token) return;
 
     if (apiResponseData && apiResponseData.status === "success") {
-      setIsServiceModalOpen(false);
-      window.dispatchEvent(
-        new CustomEvent("startOnlineConsultationCall", { detail: apiResponseData })
-      );
+      fetchConsultations();
       return;
     }
 
@@ -59,7 +56,10 @@ export default function ConsultationsPage() {
         },
         body: JSON.stringify({
           prestation_hospital_id: serviceId,
-          amount: paymentDetails?.amount || 100,
+          hospital_id: paymentDetails?.hospital_id,
+          desired_date: paymentDetails?.desired_date,
+          desired_time: paymentDetails?.desired_time,
+          amount: paymentDetails?.amount || 1000,
           payment_method: paymentDetails?.payment_method || "wave",
           phone: paymentDetails?.phone || "",
         }),
@@ -67,10 +67,7 @@ export default function ConsultationsPage() {
 
       const data = await response.json();
       if (data.status === "success") {
-        setIsServiceModalOpen(false);
-        window.dispatchEvent(
-          new CustomEvent("startOnlineConsultationCall", { detail: data })
-        );
+        fetchConsultations();
       } else {
         alert(data.message || "Erreur lors de la demande de consultation.");
       }

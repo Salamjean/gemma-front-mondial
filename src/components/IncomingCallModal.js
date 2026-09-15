@@ -509,6 +509,12 @@ export default function IncomingCallModal() {
           }
         });
 
+        const participantConnectedEvent = RoomEventEnum.ParticipantConnected || "participantConnected";
+        room.on(participantConnectedEvent, (participant) => {
+          console.log("Médecin connecté au salon LiveKit:", participant?.identity);
+          hasDoctorConnectedRef.current = true;
+        });
+
         const participantDisconnectedEvent = RoomEventEnum.ParticipantDisconnected || "participantDisconnected";
         room.on(participantDisconnectedEvent, (participant) => {
           if (isMounted && isInCallRef.current) {
@@ -675,19 +681,10 @@ export default function IncomingCallModal() {
         }
 
         setDuration(0);
-        hasDoctorConnectedRef.current = false;
+        hasDoctorConnectedRef.current = true;
         if (timerRef.current) clearInterval(timerRef.current);
         timerRef.current = setInterval(() => {
-          setDuration((prev) => {
-            const next = prev + 1;
-            if (next >= 30 && !hasDoctorConnectedRef.current) {
-              console.log("30s écoulées sans réponse de médecin, fermeture modale patient.");
-              setTimeout(() => {
-                dismissCallModalOnly();
-              }, 50);
-            }
-            return next;
-          });
+          setDuration((prev) => prev + 1);
         }, 1000);
 
       } catch (err) {

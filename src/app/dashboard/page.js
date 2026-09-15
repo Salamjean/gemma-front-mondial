@@ -67,10 +67,8 @@ export default function DashboardPage() {
     }
 
     if (apiResponseData && apiResponseData.status === "success") {
-      setIsServiceModalOpen(false);
-      window.dispatchEvent(
-        new CustomEvent("startOnlineConsultationCall", { detail: apiResponseData })
-      );
+      fetchStats(token);
+      fetchRecentActivity(token);
       return;
     }
 
@@ -85,7 +83,10 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           prestation_hospital_id: serviceId,
-          amount: paymentDetails?.amount || 100,
+          hospital_id: paymentDetails?.hospital_id,
+          desired_date: paymentDetails?.desired_date,
+          desired_time: paymentDetails?.desired_time,
+          amount: paymentDetails?.amount || 1000,
           payment_method: paymentDetails?.payment_method || "wave",
           phone: paymentDetails?.phone || "",
         }),
@@ -93,10 +94,8 @@ export default function DashboardPage() {
 
       const data = await response.json();
       if (data.status === "success") {
-        setIsServiceModalOpen(false);
-        window.dispatchEvent(
-          new CustomEvent("startOnlineConsultationCall", { detail: data })
-        );
+        fetchStats(token);
+        fetchRecentActivity(token);
       } else {
         alert(data.message || "Erreur lors de la demande de consultation.");
       }
@@ -193,7 +192,24 @@ export default function DashboardPage() {
 
       if (rdvRes.ok) {
         const rData = await rdvRes.json();
-        rdvsCount = rData.rdv?.length || rData.count || 0;
+        const list = rData.rdv || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingCount = list.filter((rdv) => {
+          if (rdv.status === "cancelled" || rdv.status === "complete") {
+            return false;
+          }
+          if (rdv.status === "pending" || rdv.status === "en_attente") {
+            return true;
+          }
+          if (!rdv.date) return false;
+          const rDate = new Date(rdv.date);
+          rDate.setHours(0, 0, 0, 0);
+          return rDate >= today;
+        }).length;
+
+        rdvsCount = upcomingCount;
       }
 
       if (callsRes.ok) {
@@ -331,7 +347,7 @@ export default function DashboardPage() {
                   Bonjour, <span className="text-teal-200">{patientName}</span> 👋
                 </h1>
                 <p className="text-teal-100/90 text-sm md:text-base mt-2 max-w-xl leading-relaxed">
-                  Bienvenue dans votre espace santé. Consultez un médecin en direct ou gérez vos rendez-vous et votre dossier médical en toute simplicité.
+                  Bienvenue dans votre espace santé. Demandez une téléconsultation auprès de l'hôpital de votre choix ou gérez vos rendez-vous et votre dossier médical en toute simplicité.
                 </p>
               </div>
 
@@ -348,7 +364,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Colonne Droite: CARTE ACCÈS DIRECT TÉLÉCONSULTATION VIDÉO */}
+            {/* Colonne Droite: CARTE ACCÈS DIRECT DEMANDE TÉLÉCONSULTATION */}
             <div className="lg:col-span-5">
               <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl space-y-4 hover:border-white/30 transition-all">
                 <div className="flex items-center justify-between">
@@ -357,14 +373,14 @@ export default function DashboardPage() {
                   </div>
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    Médecins en Ligne
+                    Hôpitaux en Ligne
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold text-white">Téléconsultation Immédiate</h3>
+                  <h3 className="text-lg font-bold text-white">Demander une Téléconsultation</h3>
                   <p className="text-xs text-teal-100 mt-1 leading-relaxed">
-                    Besoin d'un avis médical sans attendre ? Lancez un appel vidéo en direct avec le premier médecin disponible.
+                    Sélectionnez votre hôpital, choisissez la date et l'heure souhaitées et effectuez votre règlement en ligne.
                   </p>
                 </div>
 
@@ -374,7 +390,7 @@ export default function DashboardPage() {
                   className="w-full py-3.5 px-5 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 hover:from-emerald-300 hover:to-teal-200 text-teal-950 rounded-xl font-bold text-sm shadow-lg hover:shadow-emerald-500/25 transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer active:scale-98 disabled:opacity-50"
                 >
                   <FaVideo className="text-base text-teal-900" />
-                  <span>{requestingCall ? "Lancement de l'appel..." : "Appeler un médecin en ligne"}</span>
+                  <span>{requestingCall ? "Traitement..." : "Demander une téléconsultation"}</span>
                   <FaArrowRight className="text-xs text-teal-900" />
                 </button>
               </div>
