@@ -452,12 +452,17 @@ export default function IncomingCallModal() {
               el.autoplay = true;
               el.playsInline = true;
               el.setAttribute("playsinline", "true");
-              el.style.width = "100%";
-              el.style.height = "100%";
-              el.style.minWidth = "100%";
-              el.style.minHeight = "100%";
-              el.style.objectFit = "cover";
-              el.style.display = "block";
+              el.style.setProperty("width", "100%", "important");
+              el.style.setProperty("height", "100%", "important");
+              el.style.setProperty("min-width", "100%", "important");
+              el.style.setProperty("min-height", "100%", "important");
+              el.style.setProperty("max-width", "100%", "important");
+              el.style.setProperty("max-height", "100%", "important");
+              el.style.setProperty("object-fit", "cover", "important");
+              el.style.setProperty("display", "block", "important");
+              el.style.setProperty("position", "absolute", "important");
+              el.style.setProperty("top", "0", "important");
+              el.style.setProperty("left", "0", "important");
               remoteContainer.appendChild(el);
               el.play().catch((e) => console.warn("Erreur vidéo distante patient:", e));
             }
