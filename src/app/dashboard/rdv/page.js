@@ -28,12 +28,9 @@ export default function RendezVousPage() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [doctors, setDoctors] = useState([]);
-  const [loadingDoctors, setLoadingDoctors] = useState(false);
 
   useEffect(() => {
     fetchRendezVous();
-    fetchDoctors();
   }, []);
 
   const fetchRendezVous = async () => {
@@ -115,293 +112,6 @@ export default function RendezVousPage() {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchDoctors = async () => {
-    const token = localStorage.getItem("patient_token");
-    if (!token) return;
-
-    try {
-      setLoadingDoctors(true);
-      const response = await fetch(`${API_URL}/v1/patient/doctors`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setDoctors(data.doctors || []);
-      }
-    } catch (err) {
-      console.error("Erreur lors de la récupération des médecins:", err);
-    } finally {
-      setLoadingDoctors(false);
-    }
-  };
-
-  const handleCreateRendezVous = () => {
-    Swal.fire({
-      title: "Nouveau Rendez-vous",
-      html: `
-      <div class="text-left space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
-            <input 
-              id="swal-title" 
-              type="text" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-              placeholder="Ex: Consultation générale"
-              required
-            >
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Médecin *</label>
-            <select 
-              id="swal-doctor" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                loadingDoctors ? "opacity-50" : ""
-              }"
-              ${loadingDoctors ? "disabled" : ""}
-              required
-            >
-              <option value="">Sélectionnez un médecin</option>
-              ${doctors
-                .map(
-                  (doctor) =>
-                    `<option value="${doctor.id}">Dr. ${doctor.name} - ${doctor.specialite}</option>`
-                )
-                .join("")}
-            </select>
-            ${
-              loadingDoctors
-                ? '<p class="text-xs text-gray-500 mt-1">Chargement des médecins...</p>'
-                : ""
-            }
-          </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-            <input 
-              id="swal-date" 
-              type="date" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-              required
-              min="${new Date().toISOString().split("T")[0]}"
-            >
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Heure *</label>
-            <input 
-              id="swal-heure" 
-              type="time" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-              required
-            >
-          </div>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Motif *</label>
-          <textarea 
-            id="swal-motif" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-            placeholder="Décrivez le motif de votre rendez-vous"
-            rows="3"
-            required
-          ></textarea>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Notes supplémentaires</label>
-          <textarea 
-            id="swal-notes" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-            placeholder="Informations complémentaires..."
-            rows="2"
-          ></textarea>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Document à joindre (optionnel)</label>
-          <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
-            <input 
-              id="swal-image" 
-              type="file" 
-              class="hidden" 
-              accept="image/*,.pdf,.doc,.docx"
-            >
-            <label for="swal-image" class="cursor-pointer block">
-              <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <span class="mt-2 block text-sm font-medium text-gray-900">Cliquez pour sélectionner un fichier</span>
-              <span class="mt-1 block text-xs text-gray-500">Formats acceptés : images, PDF, Word (max 2MB)</span>
-            </label>
-          </div>
-          <div id="swal-file-name" class="mt-2 text-sm text-gray-600 hidden"></div>
-        </div>
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Créer le rendez-vous",
-      cancelButtonText: "Annuler",
-      confirmButtonColor: PRIMARY_BLUE,
-      cancelButtonColor: ERROR_RED,
-      focusConfirm: false,
-      width: "800px",
-      padding: "2rem",
-      customClass: {
-        popup: "rounded-xl shadow-2xl",
-        title: "text-2xl font-bold mb-6",
-        htmlContainer: "!overflow-visible",
-        confirmButton: "px-6 py-3 text-base font-medium",
-        cancelButton: "px-6 py-3 text-base font-medium",
-      },
-      preConfirm: () => {
-        const title = document.getElementById("swal-title").value;
-        const date = document.getElementById("swal-date").value;
-        const heure = document.getElementById("swal-heure").value;
-        const doctorId = document.getElementById("swal-doctor").value;
-        const motif = document.getElementById("swal-motif").value;
-        const notes = document.getElementById("swal-notes").value;
-        const image = document.getElementById("swal-image").files[0];
-
-        // Validation
-        if (!title || !date || !heure || !doctorId || !motif) {
-          Swal.showValidationMessage(
-            "Veuillez remplir tous les champs obligatoires (*)"
-          );
-          return false;
-        }
-
-        if (new Date(date) < new Date().setHours(0, 0, 0, 0)) {
-          Swal.showValidationMessage("La date ne peut pas être dans le passé");
-          return false;
-        }
-
-        if (image && image.size > 2 * 1024 * 1024) {
-          Swal.showValidationMessage(
-            "Le fichier est trop volumineux (max 2MB)"
-          );
-          return false;
-        }
-
-        return { title, date, heure, doctorId, motif, notes, image };
-      },
-      didOpen: () => {
-        // Focus sur le premier champ
-        document.getElementById("swal-title").focus();
-
-        // Aujourd'hui comme date minimum
-        const today = new Date().toISOString().split("T")[0];
-        document.getElementById("swal-date").min = today;
-
-        // Définir l'heure par défaut (9h)
-        document.getElementById("swal-heure").value = "09:00";
-
-        // Gérer l'affichage du nom du fichier
-        const fileInput = document.getElementById("swal-image");
-        const fileNameDisplay = document.getElementById("swal-file-name");
-
-        fileInput.addEventListener("change", (e) => {
-          if (e.target.files.length > 0) {
-            fileNameDisplay.textContent = `Fichier sélectionné : ${e.target.files[0].name}`;
-            fileNameDisplay.classList.remove("hidden");
-          } else {
-            fileNameDisplay.classList.add("hidden");
-          }
-        });
-      },
-    }).then(async (result) => {
-      if (result.isConfirmed && result.value) {
-        const { title, date, heure, doctorId, motif, notes, image } =
-          result.value;
-        await createRendezVous(
-          title,
-          date,
-          heure,
-          doctorId,
-          motif,
-          notes,
-          image
-        );
-      }
-    });
-  };
-
-  const createRendezVous = async (
-    title,
-    date,
-    heure,
-    doctorId,
-    motif,
-    notes,
-    image
-  ) => {
-    const token = localStorage.getItem("patient_token");
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("date", date);
-    formData.append("heure", heure);
-    formData.append("doctor_id", doctorId);
-    formData.append("motif", motif);
-    if (notes) formData.append("notes", notes);
-    if (image) formData.append("image", image);
-
-    try {
-      const response = await fetch(`${API_URL}/v1/patient/rdv/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Recharger la liste des rendez-vous
-        await fetchRendezVous();
-
-        // Récupérer le nom du médecin
-        const selectedDoctor = doctors.find((d) => d.id == doctorId);
-        const doctorName = selectedDoctor
-          ? `Dr. ${selectedDoctor.name}`
-          : "le médecin";
-
-        Swal.fire({
-          icon: "success",
-          title: "Rendez-vous créé !",
-          html: `
-            <div class="text-left">
-              <p><strong>${title}</strong></p>
-              <p class="mt-2">Avec ${doctorName}</p>
-              <p>Le ${new Date(date).toLocaleDateString("fr-FR")} à ${heure}</p>
-              <p class="mt-3 text-sm text-gray-600">Un email de confirmation vous sera envoyé.</p>
-            </div>
-          `,
-          confirmButtonColor: ACCENT_GREEN,
-        });
-      } else {
-        throw new Error(data.message || "Erreur lors de la création");
-      }
-    } catch (err) {
-      console.error("Erreur:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Erreur",
-        text: err.message || "Impossible de créer le rendez-vous",
-        confirmButtonColor: ERROR_RED,
-      });
     }
   };
 
@@ -615,25 +325,13 @@ export default function RendezVousPage() {
                 Mes Rendez-vous
               </h1>
               <p className="text-gray-600 mt-1">
-                Gérez vos rendez-vous médicaux
+                Consultez vos rendez-vous médicaux programmés
               </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleCreateRendezVous}
-                disabled={loadingDoctors}
-                className={`px-4 py-2 ${
-                  loadingDoctors
-                    ? "bg-gray-400"
-                    : "bg-blue-600 hover:bg-blue-700"
-                } text-white rounded-lg transition text-sm font-medium flex items-center`}
-                style={{
-                  backgroundColor: loadingDoctors ? "#94a3b8" : PRIMARY_BLUE,
-                }}
-              >
-                <FaPlus className="inline mr-2" />
-                {loadingDoctors ? "Chargement..." : "Nouveau RDV"}
-              </button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-3.5 py-1.5 rounded-full border border-gray-200">
+                {rendezVous.length} rendez-vous
+              </span>
             </div>
           </div>
 
@@ -762,18 +460,11 @@ export default function RendezVousPage() {
                 ? "Aucun rendez-vous trouvé"
                 : "Aucun rendez-vous programmé"}
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600">
               {searchTerm
                 ? "Essayez avec d'autres termes de recherche"
-                : "Vous n'avez pas de rendez-vous programmé pour le moment"}
+                : "Vous n'avez aucun rendez-vous programmé par l'équipe médicale pour le moment."}
             </p>
-            <button
-              onClick={handleCreateRendezVous}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center mx-auto"
-            >
-              <FaPlus className="inline mr-2" />
-              Prendre un rendez-vous
-            </button>
           </div>
         ) : (
           <div className="space-y-4">

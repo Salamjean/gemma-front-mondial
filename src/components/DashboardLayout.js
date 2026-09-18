@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
-import IncomingCallModal from "./IncomingCallModal";
 import {
   FaSignOutAlt,
   FaBars,
@@ -396,8 +395,6 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
         </main>
-
-        <IncomingCallModal />
       </div>
     </div>
   );

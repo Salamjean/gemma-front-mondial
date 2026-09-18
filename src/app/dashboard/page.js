@@ -31,9 +31,8 @@ import {
   FaCheckCircle,
   FaHeadset,
   FaUserCheck,
+  FaClipboardList,
 } from "react-icons/fa";
-
-import SelectServiceModal from "@/components/SelectServiceModal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -43,69 +42,10 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     consultations: 0,
     rendezVous: 0,
-    callsCount: 0,
+    declarations: 0,
   });
   const [recentActivity, setRecentActivity] = useState([]);
-  const [requestingCall, setRequestingCall] = useState(false);
-  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const router = useRouter();
-
-  const handleStartOnlineConsultation = () => {
-    const token = localStorage.getItem("patient_token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    setIsServiceModalOpen(true);
-  };
-
-  const handleConfirmService = async (serviceId, paymentDetails = {}, apiResponseData = null) => {
-    const token = localStorage.getItem("patient_token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    if (apiResponseData && apiResponseData.status === "success") {
-      fetchStats(token);
-      fetchRecentActivity(token);
-      return;
-    }
-
-    try {
-      setRequestingCall(true);
-      const response = await fetch(`${API_URL}/v1/patient/online-consultation/request`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          prestation_hospital_id: serviceId,
-          hospital_id: paymentDetails?.hospital_id,
-          desired_date: paymentDetails?.desired_date,
-          desired_time: paymentDetails?.desired_time,
-          amount: paymentDetails?.amount || 1000,
-          payment_method: paymentDetails?.payment_method || "wave",
-          phone: paymentDetails?.phone || "",
-        }),
-      });
-
-      const data = await response.json();
-      if (data.status === "success") {
-        fetchStats(token);
-        fetchRecentActivity(token);
-      } else {
-        alert(data.message || "Erreur lors de la demande de consultation.");
-      }
-    } catch (err) {
-      console.error("Erreur demande consultation en ligne:", err);
-      alert("Impossible de contacter le serveur.");
-    } finally {
-      setRequestingCall(false);
-    }
-  };
 
   useEffect(() => {
     const token = localStorage.getItem("patient_token");
@@ -327,72 +267,33 @@ export default function DashboardPage() {
       <div className="space-y-8 pb-12">
         {/* HERO BANNER GLASSMORPHIC (Section d'Accueil & Visioconférence Directe) */}
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-teal-800 via-emerald-800 to-cyan-900 text-white shadow-2xl p-6 md:p-8 border border-teal-700/30">
-          {/* Subtle Background Glow Circles */}
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
-
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Colonne Gauche: Informations & Salut */}
-            <div className="lg:col-span-7 space-y-4">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-teal-100 shadow-sm">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
-                </span>
-                <span>Portail Médical Sécurisé • Actif</span>
-              </div>
-
-              <div>
-                <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-white">
-                  Bonjour, <span className="text-teal-200">{patientName}</span> 👋
-                </h1>
-                <p className="text-teal-100/90 text-sm md:text-base mt-2 max-w-xl leading-relaxed">
-                  Bienvenue dans votre espace santé. Demandez une téléconsultation auprès de l'hôpital de votre choix ou gérez vos rendez-vous et votre dossier médical en toute simplicité.
-                </p>
-              </div>
-
-              {/* Badges d'état rapide */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-medium text-white border border-white/15">
-                  <FaShieldAlt className="text-teal-300 text-sm" />
-                  <span>Dossier N° {patient.code_patient || "N/A"}</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-medium text-white border border-white/15">
-                  <FaUserCheck className="text-emerald-300 text-sm" />
-                  <span>Compte Vérifié</span>
-                </div>
-              </div>
+          <div className="relative z-10 space-y-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-teal-100 shadow-sm">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+              </span>
+              <span>Portail Médical Sécurisé • Actif</span>
             </div>
 
-            {/* Colonne Droite: CARTE ACCÈS DIRECT DEMANDE TÉLÉCONSULTATION */}
-            <div className="lg:col-span-5">
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl space-y-4 hover:border-white/30 transition-all">
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg text-white">
-                    <FaVideo className="text-xl animate-pulse" />
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    Hôpitaux en Ligne
-                  </span>
-                </div>
+            <div>
+              <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-white">
+                Bonjour, <span className="text-teal-200">{patientName}</span> 👋
+              </h1>
+              <p className="text-teal-100/90 text-sm md:text-base mt-2 max-w-2xl leading-relaxed">
+                Bienvenue dans votre espace santé. Consultez vos constantes, vos ordonnances, vos déclarations et l'historique complet de votre dossier médical en toute simplicité.
+              </p>
+            </div>
 
-                <div>
-                  <h3 className="text-lg font-bold text-white">Demander une Téléconsultation</h3>
-                  <p className="text-xs text-teal-100 mt-1 leading-relaxed">
-                    Sélectionnez votre hôpital, choisissez la date et l'heure souhaitées et effectuez votre règlement en ligne.
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleStartOnlineConsultation}
-                  disabled={requestingCall}
-                  className="w-full py-3.5 px-5 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 hover:from-emerald-300 hover:to-teal-200 text-teal-950 rounded-xl font-bold text-sm shadow-lg hover:shadow-emerald-500/25 transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer active:scale-98 disabled:opacity-50"
-                >
-                  <FaVideo className="text-base text-teal-900" />
-                  <span>{requestingCall ? "Traitement..." : "Demander une téléconsultation"}</span>
-                  <FaArrowRight className="text-xs text-teal-900" />
-                </button>
+            {/* Badges d'état rapide */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-medium text-white border border-white/15">
+                <FaShieldAlt className="text-teal-300 text-sm" />
+                <span>Dossier N° {patient.code_patient || "N/A"}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-medium text-white border border-white/15">
+                <FaUserCheck className="text-emerald-300 text-sm" />
+                <span>Compte Vérifié</span>
               </div>
             </div>
           </div>
@@ -438,29 +339,29 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs">
               <Link href="/dashboard/rdv" className="text-emerald-600 font-semibold hover:text-emerald-700 flex items-center gap-1">
-                <span>Gérer les rendez-vous</span>
+                <span>Mes rendez-vous</span>
                 <FaArrowRight className="text-[10px]" />
               </Link>
             </div>
           </div>
 
-          {/* Card 3: Appels Vidéo */}
+          {/* Card 3: Déclarations */}
           <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:border-cyan-200 transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div className="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <FaVideo className="text-xl" />
+                <FaClipboardList className="text-xl" />
               </div>
               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-100">
-                Téléconsultation
+                Dossier
               </span>
             </div>
             <div className="mt-4">
-              <div className="text-3xl font-extrabold text-slate-900">{stats.callsCount}</div>
-              <div className="text-xs font-medium text-slate-500 mt-1">Appels vidéo enregistrés</div>
+              <div className="text-lg font-extrabold text-slate-900 truncate">Mes Déclarations</div>
+              <div className="text-xs font-medium text-slate-500 mt-1">Naissances & Décès</div>
             </div>
             <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs">
-              <Link href="/dashboard/calls-history" className="text-cyan-600 font-semibold hover:text-cyan-700 flex items-center gap-1">
-                <span>Historique des appels</span>
+              <Link href="/dashboard/declarations" className="text-cyan-600 font-semibold hover:text-cyan-700 flex items-center gap-1">
+                <span>Consulter</span>
                 <FaArrowRight className="text-[10px]" />
               </Link>
             </div>
@@ -545,13 +446,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      <SelectServiceModal
-        isOpen={isServiceModalOpen}
-        onClose={() => setIsServiceModalOpen(false)}
-        onConfirm={handleConfirmService}
-        loading={requestingCall}
-      />
     </DashboardLayout>
   );
 }
