@@ -12,9 +12,6 @@ import {
   FaHome,
   FaBriefcase,
   FaUserFriends,
-  FaLock,
-  FaEye,
-  FaEyeSlash,
   FaIdCard,
   FaBirthdayCake,
   FaGlobe,
@@ -31,6 +28,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 export default function UpdateProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cities, setCities] = useState([]);
   const [formData, setFormData] = useState({
     // Informations personnelles de base
     name: "",
@@ -64,8 +62,6 @@ export default function UpdateProfilePage() {
     // Adresse et email
     address: "",
     email: "",
-    password: "",
-    password_confirmation: "",
 
     // Pour l'upload d'image
     image: null,
@@ -73,8 +69,6 @@ export default function UpdateProfilePage() {
   });
 
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [originalData, setOriginalData] = useState(null);
 
   // Options pour les selects
@@ -96,9 +90,12 @@ export default function UpdateProfilePage() {
   ];
 
   const typesPiece = [
-    { value: "cni", label: "Carte Nationale d'Identité" },
+    { value: "cni", label: "Carte Nationale d'Identité (CNI)" },
     { value: "passeport", label: "Passeport" },
     { value: "permis", label: "Permis de conduire" },
+    { value: "attestation", label: "Attestation d'identité" },
+    { value: "extrait", label: "Extrait de naissance" },
+    { value: "carte_consulaire", label: "Carte consulaire" },
     { value: "carte_sejour", label: "Carte de séjour" },
     { value: "autre", label: "Autre" },
   ];
@@ -114,9 +111,90 @@ export default function UpdateProfilePage() {
     { value: "non", label: "Non" },
   ];
 
+  // Helper pour formater n'importe quel format de date en YYYY-MM-DD pour input type="date"
+  const formatBirthDateForInput = (d) => {
+    if (!d) return "";
+    if (typeof d !== "string") {
+      try {
+        const parsed = new Date(d);
+        if (!isNaN(parsed.getTime())) {
+          const y = parsed.getFullYear();
+          const m = String(parsed.getMonth() + 1).padStart(2, "0");
+          const day = String(parsed.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        }
+      } catch (e) {
+        return "";
+      }
+    }
+
+    const trimmed = d.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    // DD/MM/YYYY ou DD-MM-YYYY
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(trimmed)) {
+      const parts = trimmed.split(/[\/\-]/);
+      const day = parts[0].padStart(2, "0");
+      const month = parts[1].padStart(2, "0");
+      const year = parts[2];
+      return `${year}-${month}-${day}`;
+    }
+
+    // YYYY/MM/DD
+    if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(trimmed)) {
+      const parts = trimmed.split(/[\/\-]/);
+      const year = parts[0];
+      const month = parts[1].padStart(2, "0");
+      const day = parts[2].padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, "0");
+      const day = String(parsed.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    return trimmed;
+  };
+
+  // Helper pour normaliser le type de pièce reçu
+  const normalizeTypePiece = (tp) => {
+    if (!tp) return "";
+    const lower = tp.toString().toLowerCase().trim();
+    if (lower === "cni" || lower.includes("nationale") || lower.includes("identite") || lower.includes("identité")) {
+      if (lower.includes("attestation")) return "attestation";
+      return "cni";
+    }
+    if (lower.includes("passeport")) return "passeport";
+    if (lower.includes("permis")) return "permis";
+    if (lower.includes("attestation")) return "attestation";
+    if (lower.includes("extrait") || lower.includes("naissance")) return "extrait";
+    if (lower.includes("consulaire")) return "carte_consulaire";
+    if (lower.includes("sejour") || lower.includes("séjour")) return "carte_sejour";
+    if (lower.includes("autre")) return "autre";
+    return tp;
+  };
+
   useEffect(() => {
     fetchPatientData();
+    fetchCities();
   }, []);
+
+  const fetchCities = async () => {
+    try {
+      const response = await fetch(`${API_URL}/v1/patient/cities`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("🏙️ Villes chargées:", data);
+        setCities(data.cities || []);
+      }
+    } catch (err) {
+      console.error("❌ Erreur chargement des villes:", err);
+    }
+  };
 
   const fetchPatientData = async () => {
     const token = localStorage.getItem("patient_token");
@@ -136,14 +214,11 @@ export default function UpdateProfilePage() {
           const parsedData = JSON.parse(storedData);
           console.log("📦 localStorage chargé:", parsedData);
 
-          // IMPORTANT: Vérifier la structure
           if (parsedData.patient) {
-            // Les données sont dans "patient"
             const mappedData = mapApiDataToForm(parsedData.patient);
             setFormData(mappedData);
             setOriginalData(mappedData);
           } else {
-            // Les données sont peut-être directement à la racine
             const mappedData = mapApiDataToForm(parsedData);
             setFormData(mappedData);
             setOriginalData(mappedData);
@@ -169,24 +244,12 @@ export default function UpdateProfilePage() {
       const apiResponse = await response.json();
       console.log("📡 Réponse API complète:", apiResponse);
 
-      // IMPORTANT: Les données sont dans apiResponse.patient
       if (apiResponse.patient) {
         console.log("👤 Données patient API:", apiResponse.patient);
-        console.log("👤 User data:", apiResponse.patient.user);
-        console.log(
-          "📍 Habitual residence:",
-          apiResponse.patient.habitualResidence
-        );
-        console.log(
-          "📍 Current residence:",
-          apiResponse.patient.currentResidence
-        );
-
         const mappedApiData = mapApiDataToForm(apiResponse.patient);
         setFormData(mappedApiData);
         setOriginalData(mappedApiData);
 
-        // Mettre à jour localStorage avec la structure correcte
         localStorage.setItem(
           "patient_data",
           JSON.stringify(apiResponse.patient)
@@ -216,18 +279,30 @@ export default function UpdateProfilePage() {
       prenom: data.user?.prenom || data.prenom || "",
       code_patient: data.code_patient || "",
       gender: data.gender || "",
-      birth_date: data.birth_date || "",
+      birth_date: formatBirthDateForInput(data.birth_date),
       country: data.country || "",
-      type_piece: data.type_piece || "",
+      type_piece: normalizeTypePiece(data.type_piece),
       numero_identite: data.numero_identite || "",
       assurer: data.assurer || "",
       no_assurance: data.no_assurance || "",
 
-      // Informations complémentaires
+      // Informations complémentaires (résidences)
       residence_actuelle_id:
-        data.residence_actuelle_id || data.residence_actuelle || "",
+        data.residence_actuelle_id !== undefined && data.residence_actuelle_id !== null
+          ? String(data.residence_actuelle_id)
+          : data.currentResidence?.id
+          ? String(data.currentResidence.id)
+          : data.residence_actuelle
+          ? String(data.residence_actuelle)
+          : "",
       residence_habituelle_id:
-        data.residence_habituelle_id || data.residence_habituelle || "",
+        data.residence_habituelle_id !== undefined && data.residence_habituelle_id !== null
+          ? String(data.residence_habituelle_id)
+          : data.habitualResidence?.id
+          ? String(data.habitualResidence.id)
+          : data.residence_habituelle
+          ? String(data.residence_habituelle)
+          : "",
       profession: data.profession || "",
       situation_matrimoniale: data.situation_matrimoniale || "",
       telephone: data.telephone || "",
@@ -245,8 +320,6 @@ export default function UpdateProfilePage() {
       // Adresse et email
       address: data.address || "",
       email: data.user?.email || data.email || "",
-      password: "",
-      password_confirmation: "",
 
       // Image
       image: null,
@@ -257,12 +330,9 @@ export default function UpdateProfilePage() {
           data.user?.img_url ||
           data.user?.image_url;
         if (photoUrl) {
-          // Si c'est déjà une URL complète
           if (photoUrl.startsWith("http")) {
             return photoUrl;
           }
-          // Sinon, construire l'URL complète vers le backend
-          // On utilise l'URL racine sans /api
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
           return `${baseUrl}/assets/uploads/patient/${photoUrl}`;
         }
@@ -378,18 +448,6 @@ export default function UpdateProfilePage() {
       const today = new Date();
       if (birthDate > today) {
         newErrors.birth_date = "Date de naissance invalide";
-      }
-    }
-
-    // Validation mot de passe
-    if (formData.password) {
-      if (formData.password.length < 4) {
-        newErrors.password =
-          "Le mot de passe doit contenir au moins 4 caractères";
-      }
-      if (formData.password !== formData.password_confirmation) {
-        newErrors.password_confirmation =
-          "Les mots de passe ne correspondent pas";
       }
     }
 
@@ -783,6 +841,11 @@ export default function UpdateProfilePage() {
                         {option.label}
                       </option>
                     ))}
+                    {formData.type_piece && !typesPiece.some((opt) => opt.value === formData.type_piece) && (
+                      <option value={formData.type_piece}>
+                        {formData.type_piece}
+                      </option>
+                    )}
                   </select>
                 </div>
 
@@ -851,32 +914,44 @@ export default function UpdateProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Résidence actuelle */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <FaHome className="mr-2 text-sm text-gray-500" />
                     Résidence actuelle
                   </label>
-                  <input
-                    type="number"
+                  <select
                     name="residence_actuelle_id"
-                    value={formData.residence_actuelle_id}
+                    value={formData.residence_actuelle_id || ""}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="ID de résidence actuelle"
-                  />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Sélectionnez une localité / ville</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={String(city.id)}>
+                        {city.name || city.libelle || city.nom || `Ville #${city.id}`}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Résidence habituelle */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <FaHome className="mr-2 text-sm text-gray-500" />
                     Résidence habituelle
                   </label>
-                  <input
-                    type="number"
+                  <select
                     name="residence_habituelle_id"
-                    value={formData.residence_habituelle_id}
+                    value={formData.residence_habituelle_id || ""}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="ID de résidence habituelle"
-                  />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Sélectionnez une localité / ville</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={String(city.id)}>
+                        {city.name || city.libelle || city.nom || `Ville #${city.id}`}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Profession */}
@@ -1117,11 +1192,11 @@ export default function UpdateProfilePage() {
               </div>
             </div>
 
-            {/* Section Adresse et sécurité */}
+            {/* Section Adresse et email */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <FaLock className="mr-2" />
-                Adresse et sécurité
+                <FaHome className="mr-2" />
+                Adresse et coordonnées
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1149,7 +1224,7 @@ export default function UpdateProfilePage() {
                 </div>
 
                 {/* Email */}
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                     <FaEnvelope className="mr-2 text-sm" />
                     Adresse email *
@@ -1168,79 +1243,6 @@ export default function UpdateProfilePage() {
                     <p className="text-red-600 text-sm mt-1">{errors.email}</p>
                   )}
                 </div>
-
-                {/* Mot de passe */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nouveau mot de passe
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.password ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="Laisser vide pour ne pas changer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {errors.password}
-                    </p>
-                  )}
-                </div>
-
-                {/* Confirmation mot de passe */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirmation du mot de passe
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="password_confirmation"
-                      value={formData.password_confirmation}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.password_confirmation
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                      placeholder="Confirmez le mot de passe"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                    >
-                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                  {errors.password_confirmation && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {errors.password_confirmation}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 text-sm text-gray-600">
-                <p>
-                  ⚠️ Si vous ne souhaitez pas changer votre mot de passe,
-                  laissez les champs vides.
-                </p>
               </div>
             </div>
 
