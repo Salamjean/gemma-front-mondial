@@ -33,6 +33,8 @@ import {
   FaExclamationTriangle,
   FaFilePdf,
   FaDownload,
+  FaMicroscope,
+  FaCheckCircle,
 } from "react-icons/fa";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -156,8 +158,10 @@ export default function ParcoursDetailPage() {
   const examenPhysique = regCur?.examen_physique || "Non renseigné";
   const justification = reg?.issue_consultation_justification || consultation.hospitalisation?.remark || "Aucune remarque enregistrée";
 
-  // Ordonnances
+  // Ordonnances & Examens
   const ordonnances = consultation.ordonnances || (consultation.ordonnance ? [consultation.ordonnance] : []);
+  const bulletinObj = consultation.examen || consultation.bulletin_examen || consultation.bulletinExamen;
+  const examensList = bulletinObj?.examens || [];
 
   return (
     <DashboardLayout>
@@ -366,20 +370,21 @@ export default function ParcoursDetailPage() {
           </div>
         </div>
 
-        {/* 4. PRESCRIPTIONS & ORDONNANCES */}
+        {/* 4. PRESCRIPTIONS, EXAMENS DE LABORATOIRE & ARRÊTS */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="bg-slate-50 border-b border-gray-200 px-6 py-4">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <FaPills className="text-amber-500 text-lg" />
-              4. Prescriptions & Imagerie Médicale
+              4. Prescriptions, Examens de Laboratoire & Documents Médicaux
             </h2>
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-6">
+            {/* 4.1 Ordonnances */}
             {ordonnances.length > 0 ? (
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
                   <FaFilePrescription className="text-cyan-600" />
-                  Ordonnances Médicamenteuses :
+                  Prescriptions Médicamenteuses :
                 </h3>
                 {ordonnances.map((ord, idx) => (
                   <div key={ord.id || idx} className="border border-gray-200 rounded-xl overflow-hidden">
@@ -427,26 +432,123 @@ export default function ParcoursDetailPage() {
               </p>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-                <span className="text-xs font-bold text-gray-700 block mb-1 flex items-center gap-1.5">
-                  <FaXRay className="text-gray-500" /> Bulletin d'examen :
-                </span>
-                <span className="text-sm text-gray-800 font-medium block mb-2">
-                  {consultation.examen ? "Examen prescrit (Imagerie / Laboratoire)" : "Aucun examen demandé"}
-                </span>
-                {consultation.examen?.id && (
+            {/* 4.2 Résultats des Examens & Analyses de Laboratoire */}
+            <div className="pt-2 border-t border-gray-200 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                  <FaMicroscope className="text-purple-600" />
+                  Examens de Laboratoire & Résultats d'Analyses :
+                </h3>
+                {bulletinObj?.id && (
                   <a
-                    href={`${BASE_URL}/impression/examen/${consultation.examen.id}`}
+                    href={`${BASE_URL}/impression/examen/${bulletinObj.id}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
                   >
-                    <FaFilePdf /> Télécharger Bulletin Examen (PDF)
+                    <FaFilePdf /> Télécharger Bulletin d'Examen (PDF)
                   </a>
                 )}
               </div>
 
+              {examensList.length > 0 ? (
+                <div className="space-y-3">
+                  {examensList.map((exam, exIdx) => {
+                    const hasRes = exam.resultat || exam.observation || exam.status == 1;
+                    const fileUrl =
+                      exam.resultat_url ||
+                      (exam.resultat
+                        ? `${BASE_URL}/assets/uploads/analyses/${exam.resultat}`
+                        : null);
+
+                    return (
+                      <div
+                        key={exam.id || exIdx}
+                        className="bg-purple-50/40 border border-purple-200 rounded-2xl p-4 md:p-5 space-y-3"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-purple-100 pb-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-gray-900 text-sm md:text-base">
+                              {exam.libelle}
+                            </span>
+                            {exam.type && (
+                              <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-0.5 rounded-md font-medium">
+                                {exam.type}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            {hasRes ? (
+                              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200">
+                                <FaCheckCircle className="text-emerald-600" />
+                                Résultat disponible / Validé
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-200">
+                                En attente d'analyse
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Contenu du résultat & Observation */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          {exam.valeur && (
+                            <div className="bg-white p-3 rounded-xl border border-gray-200">
+                              <span className="text-gray-500 font-bold uppercase tracking-wider block mb-1">
+                                Valeur mesurée :
+                              </span>
+                              <span className="text-sm font-bold text-gray-900">
+                                {exam.valeur}
+                              </span>
+                            </div>
+                          )}
+
+                          {exam.observation ? (
+                            <div className="bg-white p-3 rounded-xl border border-gray-200 md:col-span-2">
+                              <span className="text-purple-700 font-bold uppercase tracking-wider block mb-1">
+                                Observation & Note du Laboratoire :
+                              </span>
+                              <p className="text-sm text-gray-800 font-medium whitespace-pre-line">
+                                {exam.observation}
+                              </p>
+                            </div>
+                          ) : (
+                            !exam.valeur && (
+                              <div className="text-gray-500 italic bg-white p-3 rounded-xl border border-gray-200 md:col-span-2">
+                                Aucune note d'analyse saisie pour le moment.
+                              </div>
+                            )
+                          )}
+                        </div>
+
+                        {/* Téléchargement du fichier joint */}
+                        {fileUrl && (
+                          <div className="pt-2 flex justify-end">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                            >
+                              <FaDownload />
+                              <span>Consulter / Télécharger le Compte-Rendu d'Analyse</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs text-gray-500 italic">
+                  Aucun examen de laboratoire n'a été prescrit pour cette consultation.
+                </div>
+              )}
+            </div>
+
+            {/* 4.3 Arrêt de travail & Récapitulatifs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
               <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
                 <span className="text-xs font-bold text-gray-700 block mb-1 flex items-center gap-1.5">
                   <FaFileContract className="text-cyan-600" /> Arrêt de travail :
@@ -465,27 +567,29 @@ export default function ParcoursDetailPage() {
                   </a>
                 )}
               </div>
-            </div>
 
-            {/* Boutons Globaux d'impression Ordonnances */}
-            {ordonnances.length > 0 && (
-              <div className="pt-3 border-t border-gray-200 flex flex-wrap gap-2 items-center">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mr-2">
-                  Télécharger Ordonnance(s) PDF :
-                </span>
-                {ordonnances.map((ord, idx) => (
-                  <a
-                    key={ord.id || idx}
-                    href={`${BASE_URL}/impression/ordonnance/${ord.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
-                  >
-                    <FaFilePdf /> Télécharger Ordonnance #{ord.reference || ord.id} (PDF)
-                  </a>
-                ))}
-              </div>
-            )}
+              {/* Boutons Globaux d'impression Ordonnances */}
+              {ordonnances.length > 0 && (
+                <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
+                  <span className="text-xs font-bold text-gray-700 block mb-1 flex items-center gap-1.5">
+                    <FaFilePdf className="text-red-500" /> Ordonnance(s) PDF :
+                  </span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {ordonnances.map((ord, idx) => (
+                      <a
+                        key={ord.id || idx}
+                        href={`${BASE_URL}/impression/ordonnance/${ord.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                      >
+                        <FaFilePdf /> Ordonnance #{ord.reference || ord.id}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

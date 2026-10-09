@@ -290,8 +290,17 @@ const ConsultationCard = ({ consultation, onOpenParcours }) => {
     minute: "2-digit",
   });
 
+  const bulletinObj =
+    consultation.examen ||
+    consultation.bulletin_examen ||
+    consultation.bulletinExamen;
+  const examensList = bulletinObj?.examens || [];
+  const hasAnyExamResult = examensList.some(
+    (e) => e.resultat || e.observation || e.status == 1
+  );
+
   const ordonnanceId = consultation.ordonnance?.id || consultation.ordonnances?.[0]?.id;
-  const examenId = consultation.examen?.id;
+  const examenId = bulletinObj?.id;
   const arretId = consultation.arret?.id;
 
   const prescriptionsList = [];
@@ -318,6 +327,12 @@ const ConsultationCard = ({ consultation, onOpenParcours }) => {
               <FaHospital className="text-emerald-600" />
               {hospitalLabel}
             </span>
+            {hasAnyExamResult && (
+              <span className="bg-purple-100 text-purple-800 text-xs font-bold px-3 py-1 rounded-full border border-purple-200 flex items-center gap-1">
+                <FaMicroscope className="text-purple-600" />
+                Résultat d'examen disponible
+              </span>
+            )}
             {consultation.call_channel && (
               <span className="bg-teal-100 text-teal-800 text-xs font-semibold px-2.5 py-1 rounded-full border border-teal-200 flex items-center gap-1">
                 <FaVideo /> Téléconsultation
@@ -379,6 +394,69 @@ const ConsultationCard = ({ consultation, onOpenParcours }) => {
             </div>
           )}
         </div>
+
+        {/* Alerte / Synthèse des Résultats d'examens disponibles directement sur la carte */}
+        {hasAnyExamResult && (
+          <div className="bg-purple-50/80 border border-purple-200 rounded-xl p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+              <span className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                <FaMicroscope className="text-purple-600 text-sm" />
+                Résultats d'Analyses de Laboratoire Disponibles ({examensList.filter(e => e.resultat || e.observation || e.status == 1).length})
+              </span>
+            </div>
+            <div className="space-y-2">
+              {examensList
+                .filter((e) => e.resultat || e.observation || e.status == 1)
+                .map((exam, exIdx) => {
+                  const fileUrl =
+                    exam.resultat_url ||
+                    (exam.resultat
+                      ? `${BASE_URL}/assets/uploads/analyses/${exam.resultat}`
+                      : null);
+                  return (
+                    <div
+                      key={exam.id || exIdx}
+                      className="bg-white p-3 rounded-lg border border-purple-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900 text-sm">
+                            {exam.libelle}
+                          </span>
+                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            Résultat prêt
+                          </span>
+                        </div>
+                        {exam.valeur && (
+                          <div className="text-gray-700">
+                            <b>Valeur :</b> {exam.valeur}
+                          </div>
+                        )}
+                        {exam.observation && (
+                          <div className="text-gray-600 bg-purple-50/50 p-2 rounded border border-purple-100 italic">
+                            <b>Note / Observation :</b> {exam.observation}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                        {fileUrl && (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition shadow-2xs"
+                          >
+                            <FaDownload className="text-xs" />
+                            <span>Voir le résultat / Rapport</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
 
         {/* Bulletins et Documents PDF */}
         <div className="pt-2 border-t border-gray-100">
@@ -516,6 +594,75 @@ const ConsultationCard = ({ consultation, onOpenParcours }) => {
                 </div>
               </div>
             )}
+
+            {/* 3. Détail complet des Examens & Résultats */}
+            {examensList.length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                  <FaMicroscope className="text-purple-600" />
+                  Examens & Analyses Médicales
+                </h4>
+                <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-2.5">
+                  {examensList.map((ex, exIdx) => {
+                    const hasRes = ex.resultat || ex.observation || ex.status == 1;
+                    const fileUrl =
+                      ex.resultat_url ||
+                      (ex.resultat
+                        ? `${BASE_URL}/assets/uploads/analyses/${ex.resultat}`
+                        : null);
+
+                    return (
+                      <div
+                        key={ex.id || exIdx}
+                        className="p-3 bg-slate-50 rounded-xl border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900">
+                              • {ex.libelle}
+                            </span>
+                            {hasRes ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <FaCheckCircle className="text-emerald-600" />
+                                Résultat disponible
+                              </span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                En attente d'analyse
+                              </span>
+                            )}
+                          </div>
+                          {ex.valeur && (
+                            <div className="text-gray-700">
+                              <b>Valeur :</b> {ex.valeur}
+                            </div>
+                          )}
+                          {ex.observation && (
+                            <div className="text-gray-700 bg-white p-2 rounded border border-gray-200">
+                              <b>Note / Observation médicale :</b> {ex.observation}
+                            </div>
+                          )}
+                        </div>
+
+                        {fileUrl && (
+                          <div className="flex-shrink-0">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition shadow-2xs"
+                            >
+                              <FaDownload className="text-xs" />
+                              <span>Télécharger le compte-rendu</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -562,6 +709,12 @@ const ParcoursModal = ({ consultation, onClose }) => {
     regCur?.diagnostic_retenu ||
     consultation.hospitalisation?.diagnostic ||
     "Aucun diagnostic renseigné";
+
+  const bulletinObj =
+    consultation.examen ||
+    consultation.bulletin_examen ||
+    consultation.bulletinExamen;
+  const examensList = bulletinObj?.examens || [];
 
   const dateStr = new Date(
     consultation.created_at || consultation.date
@@ -650,6 +803,9 @@ const ParcoursModal = ({ consultation, onClose }) => {
               <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold shadow-xs">
                 3
               </div>
+              {examensList.length > 0 && (
+                <div className="w-0.5 h-full bg-gray-200 my-1"></div>
+              )}
             </div>
             <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-gray-100">
               <h4 className="font-bold text-gray-900 text-sm mb-1 flex items-center gap-1.5">
@@ -663,6 +819,81 @@ const ParcoursModal = ({ consultation, onClose }) => {
               </div>
             </div>
           </div>
+
+          {/* Étape 4 : Examens de Laboratoire & Résultats */}
+          {examensList.length > 0 && (
+            <div className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold shadow-xs">
+                  4
+                </div>
+              </div>
+              <div className="flex-1 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
+                <h4 className="font-bold text-purple-900 text-sm mb-2 flex items-center gap-1.5">
+                  <FaMicroscope className="text-purple-600" /> 4. Examens de Laboratoire & Résultats
+                </h4>
+                <div className="space-y-2">
+                  {examensList.map((exam, exIdx) => {
+                    const hasRes = exam.resultat || exam.observation || exam.status == 1;
+                    const fileUrl =
+                      exam.resultat_url ||
+                      (exam.resultat
+                        ? `${BASE_URL}/assets/uploads/analyses/${exam.resultat}`
+                        : null);
+
+                    return (
+                      <div
+                        key={exam.id || exIdx}
+                        className="bg-white p-3 rounded-xl border border-gray-200 text-xs space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className="font-bold text-gray-900">
+                            • {exam.libelle}
+                          </span>
+                          {hasRes ? (
+                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <FaCheckCircle className="text-emerald-600" />
+                              Résultat disponible
+                            </span>
+                          ) : (
+                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                              En cours d'analyse
+                            </span>
+                          )}
+                        </div>
+
+                        {exam.valeur && (
+                          <div className="text-gray-700">
+                            <b>Valeur mesurée :</b> {exam.valeur}
+                          </div>
+                        )}
+
+                        {exam.observation && (
+                          <div className="bg-purple-50/60 p-2 rounded-lg border border-purple-100 text-purple-900">
+                            <b>Observation / Note du laboratoire :</b> {exam.observation}
+                          </div>
+                        )}
+
+                        {fileUrl && (
+                          <div className="pt-1">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition shadow-2xs"
+                            >
+                              <FaDownload className="text-xs" />
+                              <span>Télécharger le rapport d'analyse</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pied de Modal */}
